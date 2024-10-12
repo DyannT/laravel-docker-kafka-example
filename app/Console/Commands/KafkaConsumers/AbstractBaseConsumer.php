@@ -38,7 +38,7 @@ abstract class AbstractBaseConsumer extends Command
         ->usingDeserializer($deserializer);
 
         $handler = $this->handleMessage(...);
-        $consumer = $consumer->withHandler(static function (ConsumedMessage $message) use ($handler) {
+        $consumer = $consumer->withHandler(static function (ConsumedMessage $message) use ($handler): void {
             $handler($message->getBody());
         })->build();
 

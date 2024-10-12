@@ -24,23 +24,24 @@ RUN apt-get update && apt-get install -y \
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install kafka extention
+# Set git buffer size to avoid EOF error
+RUN git config --global http.postBuffer 104857600
+
+# Install Kafka extension
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y \
         git \
         zlib1g-dev \
         unzip \
-        python \
-        && ( \
-            cd /tmp \
-            && mkdir librdkafka \
-            && cd librdkafka \
-            && git clone https://github.com/edenhill/librdkafka.git . \
-            && ./configure \
-            && make \
-            && make install \
-        ) \
-    && rm -r /var/lib/apt/lists/*
+        python3 \
+    && cd /tmp \
+    && mkdir librdkafka \
+    && cd librdkafka \
+    && git clone --depth=1 https://github.com/edenhill/librdkafka.git . \
+    && ./configure \
+    && make \
+    && make install \
+    && rm -rf /var/lib/apt/lists/*
 
 # PHP Extensions
 RUN docker-php-ext-install -j$(nproc) zip \
@@ -57,13 +58,22 @@ RUN docker-php-ext-install gd
 RUN docker-php-ext-install sodium
 RUN docker-php-ext-install zip
 
+# Install Composer
 RUN curl -sS https://getcomposer.org/installer | \
     php -- --install-dir=/usr/local/bin --filename=composer
 
 # Set new UID for user www-data
 RUN usermod -u 1000 www-data
 
+# Set work directory
 WORKDIR /var/www/
+
+# Copy existing application directory contents
 COPY . .
+
+# Install project dependencies using Composer
+RUN composer install --no-scripts --no-interaction --prefer-dist --optimize-autoloader
+
+# Expose port 9000 and start php-fpm server
 EXPOSE 9000
 CMD ["php-fpm"]
